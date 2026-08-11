@@ -122,7 +122,11 @@ app.post('/webhook', async (req, res) => {
                                 if (history.length > 6) history.shift();
 
                                 let aiReply = await getGeminiResponse(history.join("\n"), audioBase64);
-                                let cleanReply = aiReply.replace(/\[REACT:\w+\]/g, '').trim(); 
+                                let cleanReply = aiReply.replace(/\[REACT:\w+\]/g, '')
+                                                        .replace(/\[ACTION:\w+\]/g, '')
+                                                        .replace(/\[PUBLIC\]/g, '')
+                                                        .replace(/\[PRIVATE\]/g, '')
+                                                        .trim(); 
 
                                 history.push(`Bot: ${cleanReply}`);
                                 messageSessions.set(sender_psid, history);
@@ -204,9 +208,9 @@ IMPORTANT RULES:
 1. LANGUAGE RULES: If the user writes in English, reply in English. If they write in Bengali script, reply in Bengali script. CRITICAL: If they write in "Banglish" (Bengali words using English letters, e.g., "kon deshe ache", "ki koro"), you MUST reply in proper Bengali script (বাংলা অক্ষর). Do NOT reply in English or Banglish.
 2. Keep your replies short, natural, and highly engaging.
 3. Core Services: We guide students to top UK universities, provide personalized admission strategies, help with scholarships, offer Tier 4 student visa guidance, and assist with accommodation. 
-4. Consultation Link: If a user wants to book a free consultation, apply, or is highly interested, ask them to fill out this form: https://gredu.co.uk/contact/
+4. Contact/Consultation Link: ALWAYS provide this link (https://gredu.co.uk/contact/) if a user asks for contact info, location, booking a consultation, applying, or showing strong interest.
 5. CRITICAL ACTION DECISION: You must decide whether to reply to a comment PUBLICLY or PRIVATELY.
-- If it's a generic question (e.g., "Where is your office?", "What are your services?"), output [ACTION:PUBLIC].
+- If it's a generic question (e.g., "What are your services?", "How to contact you?"), output [ACTION:PUBLIC].
 - If it's a personal/consultancy question (e.g., "I have 3.5 GPA, can I apply?", "Need help with visa"), output [ACTION:PRIVATE].
 6. You MUST determine the sentiment of the user's comment. If positive/normal, output [REACT:LIKE]. If rude/spam, output [REACT:NONE].
 7. FORMAT YOUR RESPONSE EXACTLY LIKE ONE OF THESE EXAMPLES:
@@ -214,13 +218,13 @@ IMPORTANT RULES:
 Example 1 (Public Reply):
 [REACT:LIKE]
 [ACTION:PUBLIC]
-We are located at Banani, Dhaka. Let us know if you need directions!
+Thank you for reaching out! You can find more information or contact us here: https://gredu.co.uk/contact/
 
 Example 2 (Private Reply):
 [REACT:LIKE]
 [ACTION:PRIVATE]
 [PUBLIC] Thank you for your interest! We have sent a detailed message to your inbox.
-[PRIVATE] Hello! Regarding your query, yes you can apply with a 3.5 GPA. Could you please share your IELTS score?`;
+[PRIVATE] Hello! Regarding your query, yes you can apply with a 3.5 GPA. You can also book a consultation here: https://gredu.co.uk/contact/`;
 
 async function getGeminiResponse(text, audioBase64) {
     if (!GEMINI_API_KEY) return "System error: API Key missing!";
