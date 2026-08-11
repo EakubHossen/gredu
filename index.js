@@ -1,6 +1,5 @@
 const express = require('express');
 const https = require('https');
-const { runAutoPoster } = require('./engine');
 
 const app = express();
 app.use(express.json());
@@ -9,9 +8,7 @@ const PORT = process.env.PORT || 3000;
 const PAGE_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN || process.env.PAGE_ACCESS_TOKEN;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 
-const recentImageIds = []; 
 const messageSessions = new Map(); 
 const commentSessions = new Map(); 
 
@@ -113,26 +110,21 @@ app.post('/webhook', async (req, res) => {
 
                     if (userMessage || audioBase64) {
                         try {
-                            if (userMessage && userMessage.toLowerCase() === 'post now') {
-                                await sendMessageToFacebook(sender_psid, "Fetching a stunning 2.5K Nature masterpiece from Google Drive/Unsplash... Please wait 15 seconds!");
-                                await runAutoPoster('image');
-                            } else {
-                                let history = messageSessions.get(sender_psid) || [];
-                                history.push(`User: ${userMessage || '[Audio Message]'}`);
-                                if (history.length > 6) history.shift();
+                            let history = messageSessions.get(sender_psid) || [];
+                            history.push(`User: ${userMessage || '[Audio Message]'}`);
+                            if (history.length > 6) history.shift();
 
-                                let aiReply = await getGeminiResponse(history.join("\n"), audioBase64);
-                                let cleanReply = aiReply.replace(/\[REACT:\w+\]/g, '')
-                                                        .replace(/\[ACTION:\w+\]/g, '')
-                                                        .replace(/\[PUBLIC\]/g, '')
-                                                        .replace(/\[PRIVATE\]/g, '')
-                                                        .trim(); 
+                            let aiReply = await getGeminiResponse(history.join("\n"), audioBase64);
+                            let cleanReply = aiReply.replace(/\[REACT:\w+\]/g, '')
+                                                    .replace(/\[ACTION:\w+\]/g, '')
+                                                    .replace(/\[PUBLIC\]/g, '')
+                                                    .replace(/\[PRIVATE\]/g, '')
+                                                    .trim(); 
 
-                                history.push(`Bot: ${cleanReply}`);
-                                messageSessions.set(sender_psid, history);
+                            history.push(`Bot: ${cleanReply}`);
+                            messageSessions.set(sender_psid, history);
 
-                                if (cleanReply) await sendMessageToFacebook(sender_psid, cleanReply);
-                            }
+                            if (cleanReply) await sendMessageToFacebook(sender_psid, cleanReply);
                         } catch (e) { console.error(e); }
                     }
                 }
@@ -160,9 +152,6 @@ app.post('/webhook', async (req, res) => {
                                 
                                 let reactionType = "NONE";
                                 if (aiReply.includes('[REACT:LIKE]')) reactionType = "LIKE";
-                                
-                                let actionType = "PUBLIC";
-                                if (aiReply.includes('[ACTION:PRIVATE]')) actionType = "PRIVATE";
 
                                 if (reactionType === "LIKE") {
                                     await likeComment(comment_id);
@@ -272,37 +261,4 @@ async function replyToComment(comment_id, text) {
     }
 }
 
-async function sendPrivateReply(comment_id, text) {
-    const url = `https://graph.facebook.com/v20.0/${comment_id}/private_replies?access_token=${PAGE_ACCESS_TOKEN}`;
-    const payload = { message: text };
-    try { 
-        const res = await httpsPost(url, payload); 
-        if (res.error) console.error("❌ Private Reply API Error:", res.error);
-        else console.log("✅ Private Reply Sent Successfully!");
-    } catch (e) {
-        console.error("❌ Private Reply Catch Error:", e);
-    }
-}
-
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
-
-// ==========================================
-// ⏰ Auto-Posting Schedule (USA/Europe Targeted)
-// Target: UTC 1, 13, 19 
-// UTC 13:00 = 9:00 AM EST (US Morning) -> Video
-// UTC 19:00 = 3:00 PM EST (US Afternoon) -> Image
-// UTC 01:00 = 9:00 PM EST (US Night) -> Image
-// ==========================================
-const targetHoursUTC = [1, 13, 19];
-
-setInterval(async () => {
-    const now = new Date();
-    const currentHour = now.getUTCHours();
-    const currentMinute = now.getUTCMinutes();
-    
-    if (targetHoursUTC.includes(currentHour) && currentMinute === 0) {
-        console.log(`⏰ Target Time (${currentHour}:00 UTC) reached! Running Auto-Poster...`);
-        const type = (currentHour === 13) ? 'video' : 'image';
-        await runAutoPoster(type);
-    }
-}, 60 * 1000);
