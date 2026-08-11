@@ -156,19 +156,35 @@ app.post('/webhook', async (req, res) => {
                                 let reactionType = "NONE";
                                 if (aiReply.includes('[REACT:LIKE]')) reactionType = "LIKE";
                                 
-                                let cleanReply = aiReply.replace(/\[REACT:\w+\]/g, '').trim();
+                                let actionType = "PUBLIC";
+                                if (aiReply.includes('[ACTION:PRIVATE]')) actionType = "PRIVATE";
 
-                                history.push(`Bot: ${cleanReply}`);
-                                commentSessions.set(sender_id, history);
-                                
                                 if (reactionType === "LIKE") {
                                     await likeComment(comment_id);
                                 }
                                 
-                                if (cleanReply) {
-                                    let taggedReply = `@[${sender_id}] ${cleanReply}`;
-                                    await replyToComment(comment_id, taggedReply);
+                                if (actionType === "PRIVATE") {
+                                    let publicText = "Thank you! We have sent a message to your inbox.";
+                                    let privateText = "Hello! Regarding your comment...";
+                                    
+                                    const pubMatch = aiReply.match(/\[PUBLIC\]([\s\S]*?)\[PRIVATE\]/);
+                                    if (pubMatch) publicText = pubMatch[1].trim();
+                                    
+                                    const privMatch = aiReply.match(/\[PRIVATE\]([\s\S]*)/);
+                                    if (privMatch) privateText = privMatch[1].trim();
+                                    
+                                    // Reply publicly and privately
+                                    await replyToComment(comment_id, `@[${sender_id}] ${publicText}`);
+                                    await sendPrivateReply(comment_id, privateText);
+                                } else {
+                                    // Just public reply
+                                    let cleanReply = aiReply.replace(/\[REACT:\w+\]/g, '').replace(/\[ACTION:\w+\]/g, '').trim();
+                                    await replyToComment(comment_id, `@[${sender_id}] ${cleanReply}`);
                                 }
+
+                                history.push(`Bot: Replied to comment`);
+                                commentSessions.set(sender_id, history);
+                                
                             } catch (e) {
                                 console.error("❌ Error generating comment reply:", e);
                             }
@@ -186,17 +202,24 @@ app.post('/webhook', async (req, res) => {
 const training_text = `You are an expert educational consultant and friendly assistant for "Great Education Hub (GrEdu)", a premier education consultancy agency.
 IMPORTANT RULES:
 1. You should reply in the language the user uses (English or Bengali). If they speak Bengali (Bangla), reply in polite, natural Bengali.
-2. Keep your replies short, natural, and highly engaging (2-3 sentences maximum).
+2. Keep your replies short, natural, and highly engaging.
 3. Core Services: We guide students to top UK universities, provide personalized admission strategies, help with scholarships, offer Tier 4 student visa guidance, and assist with accommodation. 
-4. If they ask for deep consultation, suggest they book a "Free Consultation" with our experts.
-5. You are provided with the user's recent conversation history. Read the history to understand context, but ONLY output the response for the LAST user message.
-6. CRITICAL: You must determine the sentiment of the user's LAST comment to decide if we should LIKE it.
-If it is positive, normal, or a regular inquiry, output the tag [REACT:LIKE].
-If it is negative, spam, or rude, output the tag [REACT:NONE].
-You MUST format your entire response exactly like this:
-[REACT:LIKE] Your reply text here
-OR
-[REACT:NONE] Your reply text here`;
+4. CRITICAL ACTION DECISION: You must decide whether to reply to a comment PUBLICLY or PRIVATELY.
+- If it's a generic question (e.g., "Where is your office?", "What are your services?"), output [ACTION:PUBLIC].
+- If it's a personal/consultancy question (e.g., "I have 3.5 GPA, can I apply?", "Need help with visa"), output [ACTION:PRIVATE].
+5. You MUST determine the sentiment of the user's comment. If positive/normal, output [REACT:LIKE]. If rude/spam, output [REACT:NONE].
+6. FORMAT YOUR RESPONSE EXACTLY LIKE ONE OF THESE EXAMPLES:
+
+Example 1 (Public Reply):
+[REACT:LIKE]
+[ACTION:PUBLIC]
+We are located at Banani, Dhaka. Let us know if you need directions!
+
+Example 2 (Private Reply):
+[REACT:LIKE]
+[ACTION:PRIVATE]
+[PUBLIC] Thank you for your interest! We have sent a detailed message to your inbox.
+[PRIVATE] Hello! Regarding your query, yes you can apply with a 3.5 GPA. Could you please share your IELTS score?`;
 
 async function getGeminiResponse(text, audioBase64) {
     if (!GEMINI_API_KEY) return "System error: API Key missing!";
@@ -254,6 +277,18 @@ async function replyToComment(comment_id, text) {
         else console.log("✅ Comment Reply Success");
     } catch (e) {
         console.error("❌ Comment Reply Catch Error:", e);
+    }
+}
+
+async function sendPrivateReply(comment_id, text) {
+    const url = `https://graph.facebook.com/v20.0/${comment_id}/private_replies?access_token=${PAGE_ACCESS_TOKEN}`;
+    const payload = { message: text };
+    try { 
+        const res = await httpsPost(url, payload); 
+        if (res.error) console.error("❌ Private Reply API Error:", res.error);
+        else console.log("✅ Private Reply Sent Successfully!");
+    } catch (e) {
+        console.error("❌ Private Reply Catch Error:", e);
     }
 }
 
