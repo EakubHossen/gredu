@@ -146,9 +146,10 @@ app.post('/webhook', async (req, res) => {
                         const sender_id = change.value.from ? change.value.from.id : null;
                         const page_id = entry.id;
 
+                        console.log(`💬 Received a new comment: "${message}" from sender: ${sender_id}`);
+
                         if (sender_id && sender_id !== page_id) {
                             try {
-                                console.log("💬 Received a new comment:", message);
                                 
                                 let history = commentSessions.get(sender_id) || [];
                                 history.push(`User: ${message}`);
