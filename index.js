@@ -168,24 +168,13 @@ app.post('/webhook', async (req, res) => {
                                     await likeComment(comment_id);
                                 }
                                 
-                                if (actionType === "PRIVATE") {
-                                    let publicText = "Thank you! We have sent a message to your inbox.";
-                                    let privateText = "Hello! Regarding your comment...";
-                                    
-                                    const pubMatch = aiReply.match(/\[PUBLIC\]([\s\S]*?)\[PRIVATE\]/);
-                                    if (pubMatch) publicText = pubMatch[1].trim();
-                                    
-                                    const privMatch = aiReply.match(/\[PRIVATE\]([\s\S]*)/);
-                                    if (privMatch) privateText = privMatch[1].trim();
-                                    
-                                    // Reply publicly and privately
-                                    await replyToComment(comment_id, publicText);
-                                    await sendPrivateReply(comment_id, privateText);
-                                } else {
-                                    // Just public reply
-                                    let cleanReply = aiReply.replace(/\[REACT:\w+\]/g, '').replace(/\[ACTION:\w+\]/g, '').trim();
-                                    await replyToComment(comment_id, cleanReply);
-                                }
+                                // Just public reply
+                                let cleanReply = aiReply.replace(/\[REACT:\w+\]/g, '')
+                                                        .replace(/\[ACTION:\w+\]/g, '')
+                                                        .replace(/\[PUBLIC\]/g, '')
+                                                        .replace(/\[PRIVATE\]/g, '')
+                                                        .trim();
+                                await replyToComment(comment_id, cleanReply);
 
                                 history.push(`Bot: Replied to comment`);
                                 commentSessions.set(sender_id, history);
@@ -210,22 +199,19 @@ IMPORTANT RULES:
 2. Keep your replies short, natural, and highly engaging.
 3. Core Services: We guide students to top UK universities, provide personalized admission strategies, help with scholarships, offer Tier 4 student visa guidance, and assist with accommodation. 
 4. Contact/Consultation Link: ALWAYS provide this link (https://gredu.co.uk/contact/) if a user asks for contact info, location, booking a consultation, applying, or showing strong interest.
-5. CRITICAL ACTION DECISION: You must decide whether to reply to a comment PUBLICLY or PRIVATELY.
-- If it's a generic question (e.g., "What are your services?", "How to contact you?"), output [ACTION:PUBLIC].
-- If it's a personal/consultancy question (e.g., "I have 3.5 GPA, can I apply?", "Need help with visa"), output [ACTION:PRIVATE].
+5. ACTION TYPE: For all comment replies, output [ACTION:PUBLIC]. If the user asks a personal/consultancy question (e.g., "I have 3.5 GPA, can I apply?", "Need help with visa"), you MUST give a short helpful answer in the comment and explicitly ask them to "Please send a message to our inbox" or "Inbox us for details" (in the same language they used).
 6. You MUST determine the sentiment of the user's comment. If positive/normal, output [REACT:LIKE]. If rude/spam, output [REACT:NONE].
 7. FORMAT YOUR RESPONSE EXACTLY LIKE ONE OF THESE EXAMPLES:
 
-Example 1 (Public Reply):
+Example 1 (Generic Query):
 [REACT:LIKE]
 [ACTION:PUBLIC]
 Thank you for reaching out! You can find more information or contact us here: https://gredu.co.uk/contact/
 
-Example 2 (Private Reply):
+Example 2 (Personal/Consultancy Query):
 [REACT:LIKE]
-[ACTION:PRIVATE]
-[PUBLIC] Thank you for your interest! We have sent a detailed message to your inbox.
-[PRIVATE] Hello! Regarding your query, yes you can apply with a 3.5 GPA. You can also book a consultation here: https://gredu.co.uk/contact/`;
+[ACTION:PUBLIC]
+Hello! Yes, you can apply with a 3.5 GPA. For a detailed discussion, please send a message directly to our inbox or book a consultation here: https://gredu.co.uk/contact/`;
 
 async function getGeminiResponse(text, audioBase64) {
     if (!GEMINI_API_KEY) return "System error: API Key missing!";
@@ -288,7 +274,7 @@ async function replyToComment(comment_id, text) {
 
 async function sendPrivateReply(comment_id, text) {
     const url = `https://graph.facebook.com/v20.0/${comment_id}/private_replies?access_token=${PAGE_ACCESS_TOKEN}`;
-    const payload = { message: { text: text } };
+    const payload = { message: text };
     try { 
         const res = await httpsPost(url, payload); 
         if (res.error) console.error("❌ Private Reply API Error:", res.error);
