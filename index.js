@@ -179,12 +179,12 @@ app.post('/webhook', async (req, res) => {
                                     if (privMatch) privateText = privMatch[1].trim();
                                     
                                     // Reply publicly and privately
-                                    await replyToComment(comment_id, `@[${sender_id}] ${publicText}`);
+                                    await replyToComment(comment_id, publicText);
                                     await sendPrivateReply(comment_id, privateText);
                                 } else {
                                     // Just public reply
                                     let cleanReply = aiReply.replace(/\[REACT:\w+\]/g, '').replace(/\[ACTION:\w+\]/g, '').trim();
-                                    await replyToComment(comment_id, `@[${sender_id}] ${cleanReply}`);
+                                    await replyToComment(comment_id, cleanReply);
                                 }
 
                                 history.push(`Bot: Replied to comment`);
@@ -288,7 +288,7 @@ async function replyToComment(comment_id, text) {
 
 async function sendPrivateReply(comment_id, text) {
     const url = `https://graph.facebook.com/v20.0/${comment_id}/private_replies?access_token=${PAGE_ACCESS_TOKEN}`;
-    const payload = { message: text };
+    const payload = { message: { text: text } };
     try { 
         const res = await httpsPost(url, payload); 
         if (res.error) console.error("❌ Private Reply API Error:", res.error);
