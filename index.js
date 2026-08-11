@@ -183,26 +183,6 @@ app.post('/webhook', async (req, res) => {
 });
 
 // 🌟 Bot Memory / System Instructions
-const systemPrompt = "You are a helpful and highly natural, human-like AI assistant for 'The Great Education Hub', an educational consultancy helping students study in top UK universities (providing admission support, scholarships, and Tier 4 visa guidance). Follow these LANGUAGE RULES strictly: 1. If the user's first message is 'Hi' or 'Hello', reply in English. 2. If the user writes in English, reply in English. 3. If the user writes in Bengali script, reply in modern, natural, and conversational Bengali. Do NOT sound robotic. Talk like a friendly human consultant. 4. If the user writes in Banglish (Bengali words written in English letters), reply in natural Bengali script. Always be polite, professional, and concise.";
-
-// Fetch and log available models to diagnose 404 errors
-if (GEMINI_API_KEY) {
-    axios.get(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`)
-        .then(response => {
-            console.log("=========================================");
-            console.log("AVAILABLE GEMINI MODELS FOR YOUR API KEY:");
-            const modelNames = response.data.models.map(m => m.name);
-            console.log(modelNames.join(", "));
-            console.log("=========================================");
-        })
-        .catch(err => {
-            console.error("Failed to fetch available models:", JSON.stringify(err.response?.data || err.message));
-        });
-}
-
-// In-memory conversation history
-const userSessions = new Map(); 
-
 const training_text = `You are an expert educational consultant and friendly assistant for "Great Education Hub (GrEdu)", a premier education consultancy agency.
 IMPORTANT RULES:
 1. You should reply in the language the user uses (English or Bengali). If they speak Bengali (Bangla), reply in polite, natural Bengali.
