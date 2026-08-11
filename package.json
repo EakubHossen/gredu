@@ -1,0 +1,14 @@
+{
+  "name": "gredu-ai-bot",
+  "version": "1.0.0",
+  "description": "Facebook Messenger and Comment AI Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.11.0",
+    "axios": "^1.6.8",
+    "express": "^4.19.2"
+  }
+}
